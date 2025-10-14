@@ -1,4 +1,5 @@
 using BarSheetAPI.DTOs;
+using Microsoft.Extensions.Logging;
 using BarSheetAPI.Helper;
 using BarSheetAPI.Models;
 using BarSheetAPI.Services.Interfaces;
@@ -14,10 +15,12 @@ namespace BarSheetAPI.Services
   public class SalesReportService : ISalesReportService
   {
     private readonly InventoryDbContext _context;
+    private readonly ILogger<SalesReportService> _logger;
 
-    public SalesReportService(InventoryDbContext context)
+    public SalesReportService(InventoryDbContext context, ILogger<SalesReportService> logger)
     {
       _context = context;
+      _logger = logger;
     }
 
     public async Task<SalesReportResponseDto> GetProductsSummaryAsync(int shopId, DateTime date)
@@ -616,5 +619,171 @@ namespace BarSheetAPI.Services
       // Generate PDF with only the available reports
       return PdfHelper.GenerateReportsPdf(reportDtos, productNames, shopName, sizeNames);
     }
+
+    public async Task<BatchPublishResponseDto> BatchPublishReportsAsync(DateTime date)
+    {
+      _logger.LogInformation($"Starting batch publish for date: {date:yyyy-MM-dd}");
+
+      var response = new BatchPublishResponseDto
+      {
+        TotalShopsProcessed = 0,
+        SuccessfulShops = 0,
+        FailedShops = 0
+      };
+
+      try
+      {
+        // Get all shops
+        var shops = await _context.Shops.ToListAsync();
+        response.TotalShopsProcessed = shops.Count;
+
+        foreach (var shop in shops)
+        {
+          try
+          {
+            // Check for unpublished report for this shop and date
+            var report = await _context.DailyReports
+                .FirstOrDefaultAsync(r => r.ShopId == shop.Id && r.ReportDate == date.Date && !r.IsPublished);
+
+            if (report == null)
+            {
+              _logger.LogWarning($"No unpublished report found for shop {shop.Id} on {date:yyyy-MM-dd}. Skipping.");
+              continue;
+            }
+
+            // Publish it using existing logic
+            await PublishReportAsync(shop.Id, date);
+            response.SuccessfulShopIds.Add(shop.Id);
+            response.SuccessfulShops++;
+            _logger.LogInformation($"Successfully published report for shop {shop.Id}.");
+          }
+          catch (Exception ex)
+          {
+            response.FailedShops++;
+            response.FailedShopsDetails.Add(new BatchPublishErrorDto
+            {
+              ShopId = shop.Id,
+              ErrorMessage = ex.Message
+            });
+            _logger.LogError(ex, $"Failed to publish report for shop {shop.Id}: {ex.Message}");
+            // Continue to next shop - don't stop on one failure
+          }
+        }
+
+        response.Summary = $"Batch publish completed: {response.SuccessfulShops} successful, {response.FailedShops} failed out of {response.TotalShopsProcessed} shops.";
+        _logger.LogInformation(response.Summary);
+
+        return response;
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, $"Batch publish failed overall: {ex.Message}");
+        response.Summary = $"Batch publish failed: {ex.Message}";
+        return response;
+      }
+    }
+
+    public async Task<ProductVariantSalesListResponseDto> GetProductSalesAsync(int shopId, DateTime date, int pageNumber, int pageSize)
+    {
+      _logger.LogInformation($"Fetching product sales for shop {shopId} on {date:yyyy-MM-dd}, page {pageNumber}, size {pageSize}");
+
+      var response = new ProductVariantSalesListResponseDto
+      {
+        PageNumber = pageNumber,
+        PageSize = pageSize,
+        Reports = new List<ProductVariantDailySalesDto>()
+      };
+
+      try
+      {
+        if (pageNumber < 1 || pageSize < 1)
+        {
+          _logger.LogWarning($"Invalid pagination parameters: pageNumber={pageNumber}, pageSize={pageSize}");
+          throw new ArgumentException("Page number and page size must be greater than 0.");
+        }
+
+        var report = await _context.DailyReports
+            .FirstOrDefaultAsync(r => r.ShopId == shopId && r.ReportDate == date.Date);
+
+        if (report == null)
+        {
+          _logger.LogInformation($"No report found for shop {shopId} on {date:yyyy-MM-dd}. Returning empty response.");
+          response.TotalCount = 0;
+          response.TotalAvailableQuantity = 0;
+          response.TotalSaleQuantity = 0;
+          response.TotalUnitPrice = 0;
+          response.TotalSalePrice = 0;
+          return response;
+        }
+
+        var obSummary = string.IsNullOrEmpty(report.OBJson)
+            ? new List<ProductSummaryAmountDto>()
+            : JsonSerializer.Deserialize<List<ProductSummaryAmountDto>>(report.OBJson) ?? new List<ProductSummaryAmountDto>();
+
+        var salesSummary = string.IsNullOrEmpty(report.SalesJson)
+            ? new List<ProductSummaryAmountDto>()
+            : JsonSerializer.Deserialize<List<ProductSummaryAmountDto>>(report.SalesJson) ?? new List<ProductSummaryAmountDto>();
+
+        var salesDict = salesSummary.ToDictionary(
+            p => p.ProductId,
+            p => p.Sizes.ToDictionary(s => s.ProductSizeId, s => s));
+
+        var reports = new List<ProductVariantDailySalesDto>();
+
+        foreach (var obProduct in obSummary)
+        {
+          foreach (var obSize in obProduct.Sizes)
+          {
+            var saleSize = salesDict.GetValueOrDefault(obProduct.ProductId)?.GetValueOrDefault(obSize.ProductSizeId);
+            var saleQuantity = saleSize?.Quantity ?? 0;
+
+            if (obSize.Price != (saleSize?.Price ?? obSize.Price))
+            {
+              _logger.LogWarning($"Price mismatch for product {obProduct.ProductId}, size {obSize.ProductSizeId}: OB={obSize.Price}, Sales={saleSize?.Price}");
+            }
+
+            reports.Add(new ProductVariantDailySalesDto
+            {
+              Date = date.Date,
+              ProductId = obProduct.ProductId,
+              CategoryName = obProduct.CategoryName,
+              SizeId = obSize.ProductSizeId,
+              OBQuantity = obSize.Quantity,
+              SaleQuantity = saleQuantity,
+              UnitPrice = obSize.Price,
+              SalePrice = saleQuantity * obSize.Price
+            });
+          }
+        }
+
+        response.TotalCount = reports.Count;
+        response.TotalAvailableQuantity = reports.Sum(r => r.OBQuantity);
+        response.TotalSaleQuantity = reports.Sum(r => r.SaleQuantity);
+        response.TotalUnitPrice = reports.Sum(r => r.UnitPrice);
+        response.TotalSalePrice = reports.Sum(r => r.SalePrice);
+
+        response.Reports = reports
+            .OrderBy(r => r.ProductId)
+            .ThenBy(r => r.SizeId)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        _logger.LogInformation($"Retrieved {response.Reports.Count} product sales records for shop {shopId} on {date:yyyy-MM-dd}");
+        return response;
+      }
+      catch (JsonException ex)
+      {
+        _logger.LogError(ex, $"Failed to deserialize JSON for shop {shopId}, date {date:yyyy-MM-dd}");
+        throw new InvalidOperationException("Error processing report data.", ex);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, $"Failed to fetch product sales for shop {shopId}, date {date:yyyy-MM-dd}");
+        throw;
+      }
+    }
   }
+
+
 }
