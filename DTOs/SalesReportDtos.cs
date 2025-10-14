@@ -95,4 +95,29 @@ namespace BarSheetAPI.DTOs
     public int PageSize { get; set; }
     public List<SalesReportSummaryDto> Reports { get; set; } = new();
   }
+
+  public class ProductVariantDailySalesDto
+  {
+    public DateTime Date { get; set; }
+    public int ProductId { get; set; }
+    public string CategoryName { get; set; } = string.Empty;
+    public int SizeId { get; set; }
+    public int OBQuantity { get; set; }
+    public int SaleQuantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public decimal SalePrice { get; set; }
+  }
+
+  public class ProductVariantSalesListResponseDto
+  {
+    public int TotalCount { get; set; }
+    public int PageNumber { get; set; }
+    public int PageSize { get; set; }
+
+    public int TotalAvailableQuantity { get; set; }
+    public int TotalSaleQuantity { get; set; }
+    public decimal TotalUnitPrice { get; set; }
+    public decimal TotalSalePrice { get; set; }
+    public List<ProductVariantDailySalesDto> Reports { get; set; } = new();
+  }
 }

@@ -2,23 +2,51 @@ using BarSheetAPI.DTOs;
 using BarSheetAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Extensions.Configuration;
 
 namespace BarSheetAPI.Controllers
 {
+  // Custom attribute for API key validation (loads key from config dynamically)
+  public class ApiKeyAttribute : Attribute, IAuthorizationFilter
+  {
+    public void OnAuthorization(AuthorizationFilterContext context)
+    {
+      var config = context.HttpContext.RequestServices.GetService<IConfiguration>();
+      if (config == null)
+      {
+        context.Result = new UnauthorizedResult();
+        return;
+      }
+
+      var expectedKey = config["BatchPublishKey"] ?? throw new InvalidOperationException("BatchPublishKey not configured.");
+      if (!context.HttpContext.Request.Headers.TryGetValue("X-Batch-Key", out var extractedApiKey))
+      {
+        context.Result = new UnauthorizedResult();
+        return;
+      }
+
+      if (!extractedApiKey.Equals(expectedKey))
+      {
+        context.Result = new UnauthorizedResult();
+        return;
+      }
+    }
+  }
+
   [Route("api/[controller]")]
   [ApiController]
   public class SalesReportController : ControllerBase
   {
     private readonly ISalesReportService _salesReportService;
+    private readonly IConfiguration _configuration;
 
-    public SalesReportController(ISalesReportService salesReportService)
+    public SalesReportController(ISalesReportService salesReportService, IConfiguration configuration)
     {
       _salesReportService = salesReportService;
+      _configuration = configuration;
     }
 
-    /// <summary>
-    /// Get current sales report (OB, CB, receipts, sales)
-    /// </summary>
     [HttpGet("{shopId}/{date}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetReport(int shopId, string date)
@@ -39,9 +67,6 @@ namespace BarSheetAPI.Controllers
       }
     }
 
-    /// <summary>
-    /// Save draft receipts/sales (does not change OB)
-    /// </summary>
     [HttpPost("save")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SaveDraft([FromBody] SalesReportRequestDto request)
@@ -51,7 +76,6 @@ namespace BarSheetAPI.Controllers
 
       try
       {
-        // Always take only the Date part
         request.Date = request.Date.Date;
 
         var result = await _salesReportService.SaveDraftAsync(request);
@@ -59,7 +83,7 @@ namespace BarSheetAPI.Controllers
       }
       catch (InvalidOperationException ex)
       {
-        return BadRequest(ex.Message); // e.g., "Cannot save draft: Report is already published."
+        return BadRequest(ex.Message); 
       }
       catch (Exception ex)
       {
@@ -67,9 +91,6 @@ namespace BarSheetAPI.Controllers
       }
     }
 
-    /// <summary>
-    /// Publish final report: update product stock, OB = CB for next day
-    /// </summary>
     [HttpPost("publish/{shopId}/{date}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> PublishReport(int shopId, string date)
@@ -86,7 +107,7 @@ namespace BarSheetAPI.Controllers
       }
       catch (InvalidOperationException ex)
       {
-        return BadRequest(ex.Message); // e.g., "Cannot publish: No report exists..."
+        return BadRequest(ex.Message);
       }
       catch (Exception ex)
       {
@@ -139,7 +160,56 @@ namespace BarSheetAPI.Controllers
       catch (Exception ex) { return StatusCode(500, $"An error occurred: {ex.Message}"); }
     }
 
+    [HttpPost("batch-publish/{date}")]
+    [ApiKey] 
+    public async Task<IActionResult> BatchPublish(string date)
+    {
+      if (!DateTime.TryParse(date, out var parsedDate))
+      {
+        return BadRequest("Invalid date format. Please use yyyy-MM-dd.");
+      }
+
+      try
+      {
+        var result = await _salesReportService.BatchPublishReportsAsync(parsedDate.Date);
+        return Ok(result);
+      }
+      catch (Exception ex)
+      {
+        return StatusCode(500, $"Batch publish failed: {ex.Message}");
+      }
+    }
+
+    [HttpGet("product-sales/{shopId}/{date}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetProductSales(
+            int shopId,
+            string date,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+    {
+      if (!DateTime.TryParse(date, out var parsedDate))
+      {
+        return BadRequest("Invalid date format. Please use yyyy-MM-dd.");
+      }
+
+      try
+      {
+        var result = await _salesReportService.GetProductSalesAsync(shopId, parsedDate.Date, pageNumber, pageSize);
+        return Ok(result);
+      }
+      catch (ArgumentException ex)
+      {
+        return BadRequest(ex.Message);
+      }
+      catch (InvalidOperationException ex)
+      {
+        return StatusCode(500, $"An error occurred while processing the report: {ex.Message}");
+      }
+      catch (Exception ex)
+      {
+        return StatusCode(500, $"An error occurred: {ex.Message}");
+      }
+    }
   }
-
-
 }

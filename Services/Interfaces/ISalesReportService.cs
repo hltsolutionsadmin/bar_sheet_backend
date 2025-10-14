@@ -15,5 +15,9 @@ namespace BarSheetAPI.Services.Interfaces
 
     Task<byte[]> GenerateReportsPdfAsync(int shopId, DateTime fromDate, DateTime toDate);
 
+    Task<BatchPublishResponseDto> BatchPublishReportsAsync(DateTime date);
+
+    Task<ProductVariantSalesListResponseDto> GetProductSalesAsync(int shopId, DateTime date, int pageNumber, int pageSize);
+
   }
 }
