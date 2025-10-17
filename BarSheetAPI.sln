@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BarSheetAPI", "BarSheetAPI.csproj", "{1D038B00-51B3-C1AD-D05A-3B4F76F4CAEC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BarSheetAzureFunctions", "BarSheetAzureFunctions\BarSheetAzureFunctions.csproj", "{7B2B469B-78E9-7910-F743-EDA678654078}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BarSheetAzureFunctions", "..\BarSheetAzureFunctions\BarSheetAzureFunctions.csproj", "{B603692F-110D-4360-8663-6D265578AE60}"
 EndProject
