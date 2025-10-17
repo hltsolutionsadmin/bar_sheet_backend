@@ -4,6 +4,8 @@ VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BarSheetAPI", "BarSheetAPI.csproj", "{1D038B00-51B3-C1AD-D05A-3B4F76F4CAEC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BarSheetAzureFunctions", "..\BarSheetAzureFunctions\BarSheetAzureFunctions.csproj", "{B603692F-110D-4360-8663-6D265578AE60}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,6 +16,10 @@ Global
 		{1D038B00-51B3-C1AD-D05A-3B4F76F4CAEC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1D038B00-51B3-C1AD-D05A-3B4F76F4CAEC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1D038B00-51B3-C1AD-D05A-3B4F76F4CAEC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B603692F-110D-4360-8663-6D265578AE60}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B603692F-110D-4360-8663-6D265578AE60}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B603692F-110D-4360-8663-6D265578AE60}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B603692F-110D-4360-8663-6D265578AE60}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

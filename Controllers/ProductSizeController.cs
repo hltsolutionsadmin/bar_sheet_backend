@@ -1,4 +1,4 @@
-﻿using BarSheetAPI.DTOs;
+using BarSheetAPI.DTOs;
 using BarSheetAPI.Models;
 using BarSheetAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -35,5 +35,49 @@ namespace BarSheetAPI.Controllers
             var addedProductSize = await _ProductSizeService.AddProductSizeAsync(ProductSize);
             return Ok(addedProductSize);
         }
+
+    [HttpPut("{productSizeId}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdateProductSize(int productSizeId, [FromBody] UpdateProductSizeDTO productSize)
+    {
+      if (productSizeId != productSize.ProductSizeId)
+      {
+        return BadRequest("ProductSize ID in URL does not match the ID in the request body.");
+      }
+
+      try
+      {
+        var updatedProductSize = await _ProductSizeService.UpdateProductSizeAsync(productSize);
+        return Ok(updatedProductSize);
+      }
+      catch (KeyNotFoundException ex)
+      {
+        return NotFound(ex.Message);
+      }
+      catch (InvalidOperationException ex)
+      {
+        return BadRequest(ex.Message);
+      }
     }
+
+    // Delete a ProductSize
+    [HttpDelete("{productSizeId}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteProductSize(int productSizeId)
+    {
+      try
+      {
+        var deleted = await _ProductSizeService.DeleteProductSizeAsync(productSizeId);
+        return NoContent();
+      }
+      catch (KeyNotFoundException ex)
+      {
+        return NotFound(ex.Message);
+      }
+      catch (InvalidOperationException ex)
+      {
+        return BadRequest(ex.Message);
+      }
+    }
+  }
 }

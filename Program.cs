@@ -80,6 +80,8 @@ builder.Services.AddSwaggerGen(c =>
     c.OperationFilter<SecureEndpointAuthRequirementFilter>();
 });
 
+builder.Services.AddLogging();
+
 var app = builder.Build();
 
 // Use middleware

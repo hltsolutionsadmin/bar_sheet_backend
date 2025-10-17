@@ -1,4 +1,4 @@
-﻿using BarSheetAPI.DTOs;
+using BarSheetAPI.DTOs;
 using BarSheetAPI.Models;
 
 namespace BarSheetAPI.Services.Interfaces
@@ -7,5 +7,7 @@ namespace BarSheetAPI.Services.Interfaces
     {
         Task<ProductSize> AddProductSizeAsync(AddProductSizeDTO ProductSize);
         Task<IEnumerable<ProductSize>> GetProductSizes(int shopId);
-    }
+        Task<ProductSize> UpdateProductSizeAsync(UpdateProductSizeDTO productSize);
+        Task<bool> DeleteProductSizeAsync(int productSizeId);
+  }
 }
