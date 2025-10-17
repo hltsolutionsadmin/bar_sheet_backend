@@ -622,7 +622,7 @@ namespace BarSheetAPI.Services
 
     public async Task<BatchPublishResponseDto> BatchPublishReportsAsync(DateTime date)
     {
-      _logger.LogInformation($"Starting batch publish for date: {date:yyyy-MM-dd}");
+      _logger.LogInformation($"Starting batch publish for date: {date:yyyy-MM-dd}, LocalNow: {DateTime.Now}, UtcNow: {DateTime.UtcNow}");
 
       var response = new BatchPublishResponseDto
       {

@@ -1,4 +1,4 @@
-﻿namespace BarSheetAPI.DTOs
+namespace BarSheetAPI.DTOs
 {
     public class AddProductSizeDTO
     {
@@ -9,4 +9,11 @@
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }
+
+  public class UpdateProductSizeDTO
+  {
+    public int ProductSizeId { get; set; }
+    public string Name { get; set; }
+    public int ShopId { get; set; }
+  }
 }
