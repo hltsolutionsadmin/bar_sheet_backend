@@ -1,0 +1,21 @@
+## Build results
+[Dd]ebug/
+[Rr]elease/
+[Bb]in/
+[Oo]bj/
+*.pdb
+*.suo
+*.user
+*.log
+
+# NuGet
+.nuget/
+
+# Rider / IDE
+.idea/
+
+# Testing
+TestResults/
+
+# Packages
+**/packages/
